@@ -50,26 +50,33 @@ def main():
     if len(user_prompt) == 0:
         exit(1)
     messages = [types.Content(role="user", parts=[types.Part(text=user_prompt)])]
-    response = client.models.generate_content(
-        model=model_name, 
-        contents=messages,
-        config=types.GenerateContentConfig(tools=[available_functions],system_instruction=system_prompt)
-        )
-    if response.function_calls:
-        for function_call_part in response.function_calls:
-            function_call_result = call_function(function_call_part=function_call_part, verbose=verbose)
-            if not function_call_result.parts[0].function_response.response:
-                raise Exception("Error: fatal")
-            if verbose:
-                print(f"-> {function_call_result.parts[0].function_response.response}")
-
-            
-    else:
-        print(response.text)
-    if verbose:
-        print(f"User prompt: {user_prompt}")
-        print(f"Prompt tokens: {response.usage_metadata.prompt_token_count}")
-        print(f"Response tokens: {response.usage_metadata.candidates_token_count}")
+    
+    for i in range(20):
+        response = client.models.generate_content(
+            model=model_name, 
+            contents=messages,
+            config=types.GenerateContentConfig(tools=[available_functions],system_instruction=system_prompt)
+            )
+        
+        for candidate in response.candidates:
+            messages.append(candidate.content)
+        
+        
+        if response.function_calls:
+            for function_call_part in response.function_calls:
+                function_call_result = call_function(function_call_part=function_call_part, verbose=verbose)
+                if not function_call_result.parts[0].function_response.response:
+                    raise Exception("Error: fatal")
+                if verbose:
+                    print(f"-> {function_call_result.parts[0].function_response.response}")
+                messages.append(function_call_result)
+                
+        else:
+            print(response.text)
+            break
+        
+        
+        
 
 
 if __name__ == "__main__":
